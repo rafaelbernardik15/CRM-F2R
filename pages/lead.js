@@ -357,16 +357,20 @@ function saveContact(leadId) {
 
   const icons = { 'WhatsApp':'💬', 'Ligação':'📞', 'Reunião virtual':'📹', 'Reunião presencial':'🤝', 'Café':'☕', 'E-mail':'📧', 'Evento':'🎤' };
 
-  const timeline = l.timeline || [];
-  timeline.unshift({
-    type: type.toLowerCase().replace(' ',''),
-    label: type, desc: desc || 'Contato registrado.',
-    date: contactDate,
-    icon: icons[type] || '📋'
-  });
+  // Cria novo array sem mutar o estado local (evita problemas com o Firestore)
+  const updatedTimeline = [
+    {
+      type: type.toLowerCase().replace(' ',''),
+      label: type,
+      desc: desc || 'Contato registrado.',
+      date: contactDate,
+      icon: icons[type] || '📋'
+    },
+    ...(l.timeline || [])
+  ];
 
   const updates = {
-    timeline: timeline,
+    timeline: updatedTimeline,
     ultimoContato: contactDate,
     temp: temp
   };

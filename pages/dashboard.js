@@ -6,7 +6,7 @@ function renderDashboard() {
   const leads = CRM.leads;
   const today = new Date();
 
-  // Cálculos dos widgets
+  // Cálculos dos widgets — dados 100% do Firestore via CRM.*
   const newLeads = leads.filter(l => l.stage === 'Novo lead').length;
   const hotLeads = leads.filter(l => l.temp === 'hot' && l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
   const weekMeetings = CRM.meetings.filter(m => {
@@ -16,18 +16,27 @@ function renderDashboard() {
   }).length;
   const pendingFollowups = CRM.followups.filter(f => f.prioridade === 'urgent' || f.prioridade === 'important').length;
   const closedMonth = leads.filter(l => l.stage === 'Fechado').length;
-  const totalPotencial = leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').reduce((a, l) => a + l.patrimonio, 0);
+  const totalPotencial = leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').reduce((a, l) => a + (l.patrimonio || 0), 0);
   const staleLeads = leads.filter(l => CRM.daysSince(l.ultimoContato) > 7 && l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
-  const vipNoContact = leads.filter(l => l.tags.includes('VIP') && CRM.daysSince(l.ultimoContato) > 14 && l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
+  const vipNoContact = leads.filter(l => (l.tags || []).includes('VIP') && CRM.daysSince(l.ultimoContato) > 14 && l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
   const overdueTasks = CRM.tasks.filter(t => t.status === 'atrasado').length;
 
   // Conversão
   const total = leads.length;
   const conv = ((closedMonth / total) * 100).toFixed(0);
 
+  // Saudação personalizada por email
+  const userNameMap = {
+    'rafaelbernardik15@gmail.com': 'Rafael',
+    'paimfabricio77@gmail.com': 'Fabrício'
+  };
+  const hour = today.getHours();
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  const userName = (currentUser && userNameMap[currentUser.email]) || 'Consultor';
+
   content.innerHTML = `
     <div class="page-hero">
-      <h1>Bom dia, Rafael 👋</h1>
+      <h1>${greeting}, ${userName} 👋</h1>
       <p>Aqui está o resumo comercial de hoje — ${today.toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}</p>
     </div>
 
@@ -181,13 +190,25 @@ function renderDashboard() {
       }
     });
 
-    // Reuniões por mês
+    // Reuniões por mês — dados reais do Firestore
+    const monthLabels = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const currentYear = today.getFullYear();
+    const meetingsByMonth = Array(12).fill(0);
+    CRM.meetings.forEach(m => {
+      const d = new Date(m.date + 'T00:00:00');
+      if (d.getFullYear() === currentYear) {
+        meetingsByMonth[d.getMonth()]++;
+      }
+    });
+    // Mostra apenas até o mês atual
+    const shownMonths = monthLabels.slice(0, today.getMonth() + 1);
+    const shownData = meetingsByMonth.slice(0, today.getMonth() + 1);
     new Chart(document.getElementById('chart-meetings'), {
       type: 'line',
       data: {
-        labels: ['Jan','Fev','Mar','Abr','Mai','Jun'],
+        labels: shownMonths,
         datasets: [{
-          label: 'Reuniões', data: [3, 5, 7, 6, 9, 4],
+          label: 'Reuniões', data: shownData,
           borderColor: '#0F2C59', backgroundColor: 'rgba(15,44,89,0.1)',
           fill: true, tension: 0.4, pointBackgroundColor: '#0F2C59',
           pointBorderColor: '#141420', pointBorderWidth: 2, pointRadius: 5,

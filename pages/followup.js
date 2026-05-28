@@ -206,22 +206,27 @@ function saveQuickContact(leadId) {
 
   const icons = { 'WhatsApp':'💬', 'Ligação':'📞', 'Reunião virtual':'📹', 'Reunião presencial':'🤝', 'Café':'☕', 'E-mail':'📧' };
 
-  const timeline = l.timeline || [];
-  timeline.unshift({
-    type: type.toLowerCase().replace(' ',''),
-    label: type, desc: desc || 'Contato registrado rápido.',
-    date: new Date().toISOString().split('T')[0],
-    icon: icons[type] || '📋'
-  });
+  // Cria novo array sem mutar o estado local
+  const updatedTimeline = [
+    {
+      type: type.toLowerCase().replace(' ',''),
+      label: type,
+      desc: desc || 'Contato registrado rápido.',
+      date: new Date().toISOString().split('T')[0],
+      icon: icons[type] || '📋'
+    },
+    ...(l.timeline || [])
+  ];
 
   const updates = {
-    timeline: timeline,
+    timeline: updatedTimeline,
     ultimoContato: new Date().toISOString().split('T')[0]
   };
   if (nextDate) updates.proximoContato = nextDate;
   if (temp) updates.temp = temp;
 
   updateDocument('leads', leadId, updates).then(() => {
+    // Limpa follow-ups deste lead no Firestore
     const followupsToDelete = CRM.followups.filter(f => f.leadId === leadId);
     Promise.all(followupsToDelete.map(f => deleteDocument('followups', f.id))).then(() => {
       closeModal();

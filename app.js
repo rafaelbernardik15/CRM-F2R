@@ -26,27 +26,8 @@ const CRM = {
   getMeeting(id) { return this.meetings.find(m => m.id === id); },
 
   updateUI() {
-    // ─── AUTOMAÇÕES E LIMPEZA ───
-    const existingLeadIds = this.leads.map(l => l.id);
-    // Remover followups, tarefas e reuniões de leads excluídos
-    this.followups = this.followups.filter(f => existingLeadIds.includes(f.leadId));
-    this.tasks = this.tasks.filter(t => !t.leadId || existingLeadIds.includes(t.leadId));
-    this.meetings = this.meetings.filter(m => !m.leadId || existingLeadIds.includes(m.leadId));
-
-    // Remover followups e concluir tarefas de leads "Fechado" ou "Perdido"
-    const inactiveLeadIds = this.leads.filter(l => l.stage === 'Fechado' || l.stage === 'Perdido').map(l => l.id);
-    if (inactiveLeadIds.length > 0) {
-      this.followups = this.followups.filter(f => !inactiveLeadIds.includes(f.leadId));
-      this.tasks.forEach(t => {
-        if (inactiveLeadIds.includes(t.leadId) && t.status !== 'concluido') {
-          t.status = 'concluido';
-        }
-      });
-    }
-
-    // O LocalStorage foi removido, os dados agora ficam na nuvem.
-    // this.saveData();
-
+    // Atualiza apenas os indicadores visuais da sidebar e topbar
+    // NÃO filtra/muta os arrays — os dados vêm exclusivamente do Firestore via onSnapshot
     const hotEl = document.getElementById('tb-hot');
     const patEl = document.getElementById('tb-pat');
     const overdueEl = document.getElementById('tb-overdue');
@@ -55,7 +36,7 @@ const CRM = {
     const taskBadge = document.getElementById('badge-tasks');
 
     if (hotEl) hotEl.textContent = this.leads.filter(l => l.temp === 'hot' && l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
-    if (patEl) patEl.textContent = this.formatCurrency(this.leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').reduce((a, l) => a + l.patrimonio, 0));
+    if (patEl) patEl.textContent = this.formatCurrency(this.leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').reduce((a, l) => a + (l.patrimonio || 0), 0));
     if (overdueEl) overdueEl.textContent = this.tasks.filter(t => t.status === 'atrasado').length;
 
     if (pipelineBadge) pipelineBadge.textContent = this.leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
@@ -66,30 +47,41 @@ const CRM = {
   unsubscribeLeads: null,
   unsubscribeMeetings: null,
   unsubscribeTasks: null,
+  unsubscribeFollowups: null,
 
   loadDataFromFirestore() {
     // Evitar múltiplos listeners ao recarregar a função
     if (this.unsubscribeLeads) return;
 
-    // Inscrever-se para atualizações de 'leads'
+    // Listener de leads
     this.unsubscribeLeads = listenCollection('leads', (data) => {
       this.leads = data;
       this.updateUI();
-      if(routes[this.currentPage]) routes[this.currentPage]();
+      // Não re-renderiza o pipeline se estiver em modo drag para não quebrar o DnD
+      if (this.currentPage === 'pipeline' && this.isDragging) return;
+      if (routes[this.currentPage]) routes[this.currentPage]();
     });
 
-    // Inscrever-se para atualizações de 'meetings'
+    // Listener de meetings
     this.unsubscribeMeetings = listenCollection('meetings', (data) => {
       this.meetings = data;
       this.updateUI();
-      if(this.currentPage === 'reunioes') routes.reunioes();
+      if (this.currentPage === 'reunioes') routes.reunioes();
+      if (this.currentPage === 'dashboard') routes.dashboard();
     });
 
-    // Inscrever-se para atualizações de 'tasks'
+    // Listener de tasks
     this.unsubscribeTasks = listenCollection('tasks', (data) => {
       this.tasks = data;
       this.updateUI();
-      if(this.currentPage === 'tarefas') routes.tarefas();
+      if (this.currentPage === 'tarefas') routes.tarefas();
+    });
+
+    // Listener de followups
+    this.unsubscribeFollowups = listenCollection('followups', (data) => {
+      this.followups = data;
+      this.updateUI();
+      if (this.currentPage === 'followup') routes.followup();
     });
   },
 

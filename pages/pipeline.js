@@ -48,7 +48,7 @@ function renderPipeline() {
 
 function renderKanbanCol(stage, leads) {
   const stageLeads = leads.filter(l => l.stage === stage);
-  const totalPat = stageLeads.reduce((a, l) => a + l.patrimonio, 0);
+  const totalPat = stageLeads.reduce((a, l) => a + (l.patrimonio || 0), 0);
   const color = CRM.stageColor[stage];
 
   return `
@@ -75,6 +75,10 @@ function renderLeadCard(l) {
   const adv = CRM.getAdvisor(l.responsavel);
   const days = CRM.daysSince(l.ultimoContato);
   const daysColor = days > 7 ? 'var(--rose)' : days > 3 ? 'var(--amber)' : 'var(--text-muted)';
+  const tags = l.tags || [];
+  const score = l.score || 0;
+  const chancePercent = l.chancePercent || 0;
+  const patrimonio = l.patrimonio || 0;
 
   return `
     <div class="lead-card" 
@@ -86,7 +90,7 @@ function renderLeadCard(l) {
       <div class="lead-card-top">
         <div>
           <div class="lead-name">${l.name}</div>
-          <div class="lead-company">${l.company}</div>
+          <div class="lead-company">${l.company || '—'}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <button class="btn btn-ghost btn-icon" style="width:20px;height:20px;font-size:10px;padding:0;opacity:0.5" onclick="deleteLead(event, '${l.id}')" title="Excluir lead">🗑️</button>
@@ -98,12 +102,12 @@ function renderLeadCard(l) {
         <span class="badge badge-${l.temp === 'hot' ? 'hot' : l.temp === 'warm' ? 'amber' : 'rose'}" style="font-size:10px">
           ${CRM.tempLabel(l.temp)}
         </span>
-        ${l.tags.slice(0,2).map(t => `<span class="badge badge-muted" style="font-size:10px">${t}</span>`).join('')}
+        ${tags.slice(0,2).map(t => `<span class="badge badge-muted" style="font-size:10px">${t}</span>`).join('')}
       </div>
 
       <div class="lead-card-row">
-        <span title="Patrimônio estimado">💎 <strong style="color:var(--teal)">${CRM.formatCurrency(l.patrimonio)}</strong></span>
-        <span style="font-size:10px;color:var(--accent);font-weight:600">${l.chancePercent}%</span>
+        <span title="Patrimônio estimado">💎 <strong style="color:var(--teal)">${CRM.formatCurrency(patrimonio)}</strong></span>
+        <span style="font-size:10px;color:var(--accent);font-weight:600">${chancePercent}%</span>
       </div>
       <div class="lead-card-row mt-1">
         <span style="color:${daysColor};font-size:10.5px" title="Último contato">🕐 ${days === 0 ? 'Hoje' : days === 1 ? 'Ontem' : `${days}d atrás`}</span>
@@ -114,41 +118,45 @@ function renderLeadCard(l) {
         📅 Próx: ${CRM.formatDate(l.proximoContato)}
       </div>` : ''}
 
-      <div class="score-bar mt-2" title="Score: ${l.score}">
-        <div class="score-bar-fill" style="width:${l.score}%;background:linear-gradient(90deg,${CRM.getScoreColor(l.score)},${CRM.getScoreColor(l.score)}88)"></div>
+      <div class="score-bar mt-2" title="Score: ${score}">
+        <div class="score-bar-fill" style="width:${score}%;background:linear-gradient(90deg,${CRM.getScoreColor(score)},${CRM.getScoreColor(score)}88)"></div>
       </div>
 
       <div style="display:flex;justify-content:space-between;margin-top:4px">
         <span style="font-size:9.5px;color:var(--text-disabled)">Score</span>
-        <span style="font-size:9.5px;color:${CRM.getScoreColor(l.score)};font-weight:700">${l.score}</span>
+        <span style="font-size:9.5px;color:${CRM.getScoreColor(score)};font-weight:700">${score}</span>
       </div>
     </div>`;
 }
 
 // ─── DRAG AND DROP ───────────────────────────────────────────
 function initDragDrop() {
-  // Inicializar drag and drop via JS events (já no HTML)
+  // Inicializado via atributos HTML inline nos cards e colunas
 }
 
 function handleDragStart(event, leadId) {
   CRM.dragData = leadId;
+  CRM.isDragging = true;
+  // Armazena no dataTransfer como fallback (necessário para alguns navegadores)
+  event.dataTransfer.setData('text/plain', leadId);
   event.dataTransfer.effectAllowed = 'move';
   setTimeout(() => {
-    const card = event.target;
-    card.classList.add('dragging');
+    const card = document.querySelector(`[data-lead-id="${leadId}"]`);
+    if (card) card.classList.add('dragging');
   }, 0);
 }
 
 function handleDragEnd(event) {
-  event.target.classList.remove('dragging');
+  CRM.isDragging = false;
+  // Remove classe de todos os cards
+  document.querySelectorAll('.lead-card.dragging').forEach(c => c.classList.remove('dragging'));
   document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
 }
 
 function handleDragOver(event) {
   event.preventDefault();
   event.dataTransfer.dropEffect = 'move';
-  const col = event.currentTarget;
-  col.classList.add('drag-over');
+  event.currentTarget.classList.add('drag-over');
 }
 
 function handleDragLeave(event) {
@@ -159,35 +167,52 @@ function handleDragLeave(event) {
 
 function handleDrop(event, newStage) {
   event.preventDefault();
-  const leadId = CRM.dragData;
+  event.currentTarget.classList.remove('drag-over');
+
+  // Recupera o id do lead tanto do CRM.dragData quanto do dataTransfer
+  const leadId = CRM.dragData || event.dataTransfer.getData('text/plain');
+  CRM.dragData = null;
+  CRM.isDragging = false;
+
   if (!leadId) return;
 
   const lead = CRM.getLead(leadId);
-  if (lead && lead.stage !== newStage) {
-    const oldStage = lead.stage;
-    const timeline = lead.timeline || [];
-    
-    // Cria nova timeline para envio ao banco sem mutar o estado local
-    const updatedTimeline = [{
+  if (!lead || lead.stage === newStage) return;
+
+  const oldStage = lead.stage;
+
+  // Atualização otimista local para UX fluida
+  lead.stage = newStage;
+  lead.ultimoContato = new Date().toISOString().split('T')[0];
+
+  // Re-renderiza imediatamente com o estado local
+  renderPipeline();
+
+  // Monta timeline sem mutar o array original do Firestore
+  const updatedTimeline = [
+    {
       type: 'move',
       label: `Movido para: ${newStage}`,
       desc: `Lead avançou de "${oldStage}" para "${newStage}"`,
       date: new Date().toISOString().split('T')[0],
       icon: '📋'
-    }, ...timeline];
+    },
+    ...(lead.timeline || [])
+  ];
 
-    // Atualiza apenas no Firestore. O listener onSnapshot atualizará a tela.
-    updateDocument('leads', leadId, {
-      stage: newStage,
-      ultimoContato: new Date().toISOString().split('T')[0],
-      timeline: updatedTimeline
-    }).then(() => {
-      showToast(`${lead.name} movido para "${newStage}"`, 'success');
-    }).catch(e => {
-      showToast(`Erro ao mover: ${e.message}`, 'error');
-    });
-  }
-  CRM.dragData = null;
+  // Persiste no Firestore — onSnapshot atualizará o estado canônico
+  updateDocument('leads', leadId, {
+    stage: newStage,
+    ultimoContato: lead.ultimoContato,
+    timeline: updatedTimeline
+  }).then(() => {
+    showToast(`${lead.name} movido para "${newStage}"`, 'success');
+  }).catch(e => {
+    // Em caso de erro, reverte a atualização otimista
+    lead.stage = oldStage;
+    renderPipeline();
+    showToast(`Erro ao mover: ${e.message}`, 'error');
+  });
 }
 
 // ─── NOVO LEAD MODAL ─────────────────────────────────────────
@@ -261,8 +286,9 @@ function saveNewLead() {
   const company = document.getElementById('nl-company').value.trim();
   if (!name || !company) { showToast('Preencha nome e empresa', 'error'); return; }
 
+  // Não incluir o campo 'id' — o Firestore gerará o ID e ele será injetado
+  // automaticamente pelo onSnapshot via { id: doc.id, ...doc.data() }
   const newLead = {
-    id: 'l' + Date.now(),
     name, company,
     cargo: document.getElementById('nl-cargo').value,
     segmento: document.getElementById('nl-segmento').value,
