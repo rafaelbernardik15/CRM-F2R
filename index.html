@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InvestCRM — CRM Premium para Consultoria de Investimentos</title>
+  <meta name="description" content="CRM comercial premium para consultoria de investimentos independente. Gestão de leads, follow-up inteligente, pipeline kanban e inteligência comercial.">
+  <meta name="theme-color" content="#07070F">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Firebase Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+
+  <!-- Firebase Config & Auth -->
+  <script src="firebase/config.js"></script>
+  <script src="firebase/auth.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* Splash screen */
+    #splash {
+      position: fixed; inset: 0;
+      background: var(--bg-base);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.4s ease;
+    }
+    #splash.hidden { opacity: 0; pointer-events: none; }
+    .splash-content { text-align: center; }
+    .splash-logo {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, #0F2C59, #C5A059);
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 900; color: #fff;
+      margin: 0 auto 20px;
+      box-shadow: 0 0 40px rgba(15,44,89,0.4);
+      animation: splashPulse 1.5s ease infinite;
+    }
+    @keyframes splashPulse {
+      0%,100% { filter: drop-shadow(0 0 15px rgba(15, 44, 89, 0.3)); }
+      50% { filter: drop-shadow(0 0 25px rgba(15, 44, 89, 0.5)); }
+    }
+    .splash-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+    .splash-sub { font-size: 13px; color: var(--text-muted); }
+    .splash-bar {
+      width: 200px; height: 2px;
+      background: var(--bg-elevated);
+      border-radius: 99px; margin: 20px auto 0;
+      overflow: hidden;
+    }
+    .splash-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #0F2C59, #C5A059);
+      border-radius: 99px;
+      animation: splashLoad 1.5s ease forwards;
+    }
+    @keyframes splashLoad { from { width: 0; } to { width: 100%; } }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay" style="display:none; position:fixed; inset:0; background:var(--bg-base); z-index:10000; flex-direction:column; align-items:center; justify-content:center;">
+  <div style="background:var(--bg-elevated); padding:40px; border-radius:16px; width:100%; max-width:400px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+    <div class="splash-logo" style="animation:none; margin:0 auto 20px;">F2R</div>
+    <h2 style="margin-bottom:8px;">InvestCRM</h2>
+    <p style="color:var(--text-muted); margin-bottom:30px; font-size:14px;">Faça login para acessar o sistema compartilhado</p>
+    
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <button class="btn btn-primary" onclick="loginWithGoogle()" style="width:100%; justify-content:center; padding:12px;">
+        Continuar com Google
+      </button>
+      <div style="font-size:12px; color:var(--text-muted); margin: 8px 0;">OU</div>
+      <input type="email" id="login-email" placeholder="E-mail" style="padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-main);">
+      <input type="password" id="login-password" placeholder="Senha" style="padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-main);">
+      <button class="btn btn-ghost" onclick="loginWithEmail(document.getElementById('login-email').value, document.getElementById('login-password').value)" style="width:100%; justify-content:center; padding:12px; border:1px solid var(--border);">
+        Entrar com E-mail
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-content">
+    <img src="logo.png" alt="F2R Logo" style="height: 80px; object-fit: contain; margin: 0 auto 20px; display: block; animation: splashPulse 1.5s ease infinite;">
+    <div class="splash-title">InvestCRM</div>
+    <div class="splash-sub">Carregando sua central comercial...</div>
+    <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- SEARCH OVERLAY -->
+<div class="search-overlay" id="search-overlay" onclick="if(event.target===this)closeSearch()">
+  <div class="search-box">
+    <div class="search-input-wrap">
+      <span style="font-size:18px;color:var(--text-muted)">🔍</span>
+      <input type="text" id="global-search-input" placeholder="Buscar leads, reuniões, tarefas..." oninput="handleSearch(event)">
+      <span style="font-size:12px;color:var(--text-muted);cursor:pointer" onclick="closeSearch()">ESC</span>
+    </div>
+    <div class="search-results" id="search-results"></div>
+    <div class="search-footer">
+      <span><kbd>↑↓</kbd> navegar</span>
+      <span><kbd>Enter</kbd> abrir</span>
+      <span><kbd>Esc</kbd> fechar</span>
+      <span><kbd>1-7</kbd> atalhos de página</span>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL GLOBAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Modal</div>
+      <div class="modal-close" onclick="closeModal()">✕</div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="modal-confirm">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <img src="logo.png" alt="F2R" style="height: 40px; object-fit: contain; flex-shrink: 0;">
+        <div class="logo-text">
+          <strong>InvestCRM</strong>
+          <span>Consultoria Premium</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="sidebar-search">
+      <button class="sidebar-search-btn" onclick="openSearch()">
+        <span>🔍</span>
+        <span>Buscar...</span>
+        <kbd>⌘K</kbd>
+      </button>
+    </div>
+
+    <!-- Nav -->
+    <nav class="sidebar-nav">
+
+      <div class="nav-section-label">Principal</div>
+      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <span class="nav-icon">📊</span>
+        Dashboard
+      </div>
+      <div class="nav-item" data-page="pipeline" onclick="navigate('pipeline')">
+        <span class="nav-icon">🔀</span>
+        Pipeline
+        <span class="nav-badge" id="badge-pipeline">8</span>
+      </div>
+      <div class="nav-item" data-page="followup" onclick="navigate('followup')">
+        <span class="nav-icon">⏰</span>
+        Follow-up
+        <span class="nav-badge danger" id="badge-followup">7</span>
+      </div>
+
+      <div class="nav-section-label">Comercial</div>
+      <div class="nav-item" data-page="reunioes" onclick="navigate('reunioes')">
+        <span class="nav-icon">📅</span>
+        Reuniões
+      </div>
+      <div class="nav-item" data-page="tarefas" onclick="navigate('tarefas')">
+        <span class="nav-icon">✅</span>
+        Tarefas
+        <span class="nav-badge warning" id="badge-tasks">2</span>
+      </div>
+
+      <div class="nav-section-label">Estratégia</div>
+      <div class="nav-item" data-page="relacionamento" onclick="navigate('relacionamento')">
+        <span class="nav-icon">❤️</span>
+        Relacionamento
+      </div>
+      <div class="nav-item" data-page="inteligencia" onclick="navigate('inteligencia')">
+        <span class="nav-icon">🧠</span>
+        Inteligência
+      </div>
+
+      <div class="nav-section-label">Em Breve</div>
+      <div class="nav-item" style="opacity:0.4;cursor:not-allowed" title="Em desenvolvimento">
+        <span class="nav-icon">💬</span>
+        WhatsApp
+        <span class="badge badge-muted" style="font-size:9px;margin-left:auto">SOON</span>
+      </div>
+      <div class="nav-item" style="opacity:0.4;cursor:not-allowed" title="Em desenvolvimento">
+        <span class="nav-icon">📧</span>
+        E-mail
+        <span class="badge badge-muted" style="font-size:9px;margin-left:auto">SOON</span>
+      </div>
+      <div class="nav-item" style="opacity:0.4;cursor:not-allowed" title="Em desenvolvimento">
+        <span class="nav-icon">⚡</span>
+        Automações
+        <span class="badge badge-muted" style="font-size:9px;margin-left:auto">SOON</span>
+      </div>
+
+    </nav>
+
+    <!-- Footer / User -->
+    <div class="sidebar-footer">
+      <div class="user-profile">
+        <div class="avatar" id="sidebar-user-avatar" style="background:linear-gradient(135deg,#0F2C59,#C5A059)">--</div>
+        <div class="user-info">
+          <strong id="sidebar-user-name">Carregando...</strong>
+          <span>Consultor Sênior</span>
+        </div>
+        <span style="font-size:16px;color:var(--text-muted);cursor:pointer;" onclick="logout()" title="Sair do sistema">🚪</span>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Dashboard Comercial</div>
+      </div>
+
+      <!-- Breadcrumb / Data -->
+      <div style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:8px">
+        <span id="topbar-date"></span>
+      </div>
+
+      <div class="topbar-actions">
+        <!-- Quick stats no topo -->
+        <div style="display:flex;gap:12px;align-items:center;margin-right:8px">
+          <div style="text-align:center">
+            <div style="font-size:11px;font-weight:700;color:var(--hot)" id="tb-hot">0</div>
+            <div style="font-size:9.5px;color:var(--text-muted)">Quentes</div>
+          </div>
+          <div style="width:1px;height:24px;background:var(--border)"></div>
+          <div style="text-align:center">
+            <div style="font-size:11px;font-weight:700;color:var(--teal)" id="tb-pat">—</div>
+            <div style="font-size:9.5px;color:var(--text-muted)">Potencial</div>
+          </div>
+          <div style="width:1px;height:24px;background:var(--border)"></div>
+          <div style="text-align:center">
+            <div style="font-size:11px;font-weight:700;color:var(--rose)" id="tb-overdue">0</div>
+            <div style="font-size:9.5px;color:var(--text-muted)">Atrasados</div>
+          </div>
+        </div>
+
+        <button class="btn btn-ghost btn-sm" onclick="openSearch()">
+          🔍 <span style="opacity:0.6;font-size:11px">⌘K</span>
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="openNewLeadModal()">
+          + Novo Lead
+        </button>
+        <button class="btn-icon btn btn-ghost" title="Notificações" style="font-size:16px" onclick="showToast('3 follow-ups urgentes para hoje!','info')">
+          🔔
+        </button>
+      </div>
+    </header>
+
+    <!-- PAGE CONTENT -->
+    <div class="page-content" id="page-content">
+      <!-- Renderizado via JS -->
+    </div>
+
+  </main>
+</div>
+
+<!-- SCRIPTS — na ordem correta -->
+<script src="services/firestore.js"></script>
+<script src="app.js"></script>
+<script src="pages/dashboard.js"></script>
+<script src="pages/pipeline.js"></script>
+<script src="pages/lead.js"></script>
+<script src="pages/followup.js"></script>
+<script src="pages/reunioes.js"></script>
+<script src="pages/tarefas.js"></script>
+<script src="pages/relacionamento.js"></script>
+<script src="pages/inteligencia.js"></script>
+<script src="components/search.js"></script>
+
+<script>
+// ─── INIT ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+
+  // Atualizar data no topbar
+  const dateEl = document.getElementById('topbar-date');
+  if (dateEl) {
+    dateEl.textContent = new Date().toLocaleDateString('pt-BR', {
+      weekday:'short', day:'numeric', month:'short', year:'numeric'
+    });
+  }
+
+  // Atualizar UI inicialmente
+  CRM.updateUI();
+
+  // Renderizar busca padrão
+  const searchResults = document.getElementById('search-results');
+  if (searchResults) searchResults.innerHTML = renderDefaultSearchResults();
+
+  // Remover splash e renderizar dashboard
+  setTimeout(() => {
+    document.getElementById('splash').classList.add('hidden');
+    setTimeout(() => {
+      document.getElementById('splash').remove();
+      navigate('dashboard');
+    }, 400);
+  }, 1600);
+
+  // Interceptar navigate para atualizar stats
+  const _origNavigate = navigate;
+
+  // Alerta de boas-vindas
+  setTimeout(() => {
+    showToast('Bem-vindo ao InvestCRM! 🚀 Use ⌘K para busca rápida.', 'info');
+  }, 2500);
+});
+</script>
+
+</body>
+</html>

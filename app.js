@@ -1,0 +1,189 @@
+// ============================================================
+// CRM PREMIUM — DADOS MOCK & ESTADO GLOBAL
+// ============================================================
+
+const CRM = {
+  currentPage: 'dashboard',
+  currentLead: null,
+  dragData: null,
+
+  // ─── DADOS MOCK ───────────────────────────────────────────
+  advisors: [
+    { id: 'a1', name: 'Rafael Bernardi', initials: 'RB', color: '#0F2C59' },
+    { id: 'a2', name: 'Fabricio', initials: 'F', color: '#C5A059' },
+    
+  ],
+
+  leads: [],
+  meetings: [],
+  tasks: [],
+  followups: [],
+  events: [],
+
+  // ─── HELPERS ──────────────────────────────────────────────
+  getAdvisor(id) { return this.advisors.find(a => a.id === id) || this.advisors[0]; },
+  getLead(id) { return this.leads.find(l => l.id === id); },
+  getMeeting(id) { return this.meetings.find(m => m.id === id); },
+
+  updateUI() {
+    // ─── AUTOMAÇÕES E LIMPEZA ───
+    const existingLeadIds = this.leads.map(l => l.id);
+    // Remover followups, tarefas e reuniões de leads excluídos
+    this.followups = this.followups.filter(f => existingLeadIds.includes(f.leadId));
+    this.tasks = this.tasks.filter(t => !t.leadId || existingLeadIds.includes(t.leadId));
+    this.meetings = this.meetings.filter(m => !m.leadId || existingLeadIds.includes(m.leadId));
+
+    // Remover followups e concluir tarefas de leads "Fechado" ou "Perdido"
+    const inactiveLeadIds = this.leads.filter(l => l.stage === 'Fechado' || l.stage === 'Perdido').map(l => l.id);
+    if (inactiveLeadIds.length > 0) {
+      this.followups = this.followups.filter(f => !inactiveLeadIds.includes(f.leadId));
+      this.tasks.forEach(t => {
+        if (inactiveLeadIds.includes(t.leadId) && t.status !== 'concluido') {
+          t.status = 'concluido';
+        }
+      });
+    }
+
+    // O LocalStorage foi removido, os dados agora ficam na nuvem.
+    // this.saveData();
+
+    const hotEl = document.getElementById('tb-hot');
+    const patEl = document.getElementById('tb-pat');
+    const overdueEl = document.getElementById('tb-overdue');
+    const pipelineBadge = document.getElementById('badge-pipeline');
+    const followupBadge = document.getElementById('badge-followup');
+    const taskBadge = document.getElementById('badge-tasks');
+
+    if (hotEl) hotEl.textContent = this.leads.filter(l => l.temp === 'hot' && l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
+    if (patEl) patEl.textContent = this.formatCurrency(this.leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').reduce((a, l) => a + l.patrimonio, 0));
+    if (overdueEl) overdueEl.textContent = this.tasks.filter(t => t.status === 'atrasado').length;
+
+    if (pipelineBadge) pipelineBadge.textContent = this.leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
+    if (followupBadge) followupBadge.textContent = this.followups.filter(f => f.prioridade === 'urgent').length;
+    if (taskBadge) taskBadge.textContent = this.tasks.filter(t => t.status === 'atrasado').length;
+  },
+
+  loadDataFromFirestore() {
+    // Inscrever-se para atualizações de 'leads'
+    listenCollection('leads', (data) => {
+      this.leads = data;
+      this.updateUI();
+      if(routes[this.currentPage]) routes[this.currentPage]();
+    });
+
+    // Inscrever-se para atualizações de 'meetings'
+    listenCollection('meetings', (data) => {
+      this.meetings = data;
+      this.updateUI();
+      if(this.currentPage === 'reunioes') routes.reunioes();
+    });
+
+    // Inscrever-se para atualizações de 'tasks'
+    listenCollection('tasks', (data) => {
+      this.tasks = data;
+      this.updateUI();
+      if(this.currentPage === 'tarefas') routes.tarefas();
+    });
+  },
+
+  formatCurrency(val) {
+    if (val >= 1000000) return `R$ ${(val/1000000).toFixed(1)}M`;
+    if (val >= 1000) return `R$ ${(val/1000).toFixed(0)}k`;
+    return `R$ ${val}`;
+  },
+  formatDate(str) {
+    if (!str) return '—';
+    const d = new Date(str + 'T00:00:00');
+    return d.toLocaleDateString('pt-BR');
+  },
+  daysSince(str) {
+    if (!str) return 999;
+    const d = new Date(str + 'T00:00:00');
+    return Math.floor((Date.now() - d) / 86400000);
+  },
+  tempLabel(t) { return { hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || t; },
+  tempClass(t) { return { hot: 'hot', warm: 'warm', cold: 'cold' }[t] || ''; },
+  getScoreColor(s) {
+    if (s >= 80) return '#10B981';
+    if (s >= 60) return '#F59E0B';
+    if (s >= 40) return '#0F2C59';
+    return '#F43F5E';
+  },
+  getInitials(name) {
+    return name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
+  },
+
+  stageOrder: [
+    'Novo lead','Tentativa de contato','Conversa iniciada','Diagnóstico',
+    'Reunião marcada','Reunião realizada','Proposta enviada','Negociação',
+    'Fechado','Perdido','Nutrição futura'
+  ],
+  stageColor: {
+    'Novo lead': '#0F2C59',
+    'Tentativa de contato': '#8B5CF6',
+    'Conversa iniciada': '#3B82F6',
+    'Diagnóstico': '#06B6D4',
+    'Reunião marcada': '#F59E0B',
+    'Reunião realizada': '#10B981',
+    'Proposta enviada': '#F97316',
+    'Negociação': '#EF4444',
+    'Fechado': '#10B981',
+    'Perdido': '#6B7280',
+    'Nutrição futura': '#8B5CF6',
+  },
+};
+
+// Os dados serão inicializados assim que o usuário fizer o login (via auth.js)
+// CRM.loadDataFromFirestore();
+
+// ─── TOAST ──────────────────────────────────────────────────
+function showToast(msg, type = 'info') {
+  const icons = { success: '✅', error: '❌', info: '💡' };
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => t.style.animation = 'none', 3000);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ─── ROUTER ─────────────────────────────────────────────────
+const routes = {
+  dashboard:     () => renderDashboard(),
+  pipeline:      () => renderPipeline(),
+  followup:      () => renderFollowup(),
+  reunioes:      () => renderReunioes(),
+  tarefas:       () => renderTarefas(),
+  relacionamento:() => renderRelacionamento(),
+  inteligencia:  () => renderInteligencia(),
+  lead:          () => renderLeadPage(CRM.currentLead),
+};
+
+function navigate(page, extra = null) {
+  if (extra) CRM.currentLead = extra;
+  CRM.currentPage = page;
+
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page);
+  });
+
+  const topbarTitle = document.getElementById('topbar-title');
+  const titles = {
+    dashboard: 'Dashboard Comercial',
+    pipeline: 'Pipeline Comercial',
+    followup: 'Follow-up Inteligente',
+    reunioes: 'Reuniões',
+    tarefas: 'Tarefas',
+    relacionamento: 'Relacionamento',
+    inteligencia: 'Inteligência Comercial',
+    lead: CRM.currentLead ? CRM.getLead(CRM.currentLead)?.name : 'Lead',
+  };
+  if (topbarTitle) topbarTitle.textContent = titles[page] || page;
+
+  const content = document.getElementById('page-content');
+  content.className = 'page-content page-enter';
+  if (routes[page]) routes[page]();
+  CRM.updateUI();
+  setTimeout(() => content.classList.remove('page-enter'), 300);
+}
