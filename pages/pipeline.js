@@ -166,24 +166,21 @@ function handleDrop(event, newStage) {
   if (lead && lead.stage !== newStage) {
     const oldStage = lead.stage;
     const timeline = lead.timeline || [];
-    timeline.unshift({
+    
+    // Cria nova timeline para envio ao banco sem mutar o estado local
+    const updatedTimeline = [{
       type: 'move',
       label: `Movido para: ${newStage}`,
       desc: `Lead avançou de "${oldStage}" para "${newStage}"`,
       date: new Date().toISOString().split('T')[0],
       icon: '📋'
-    });
+    }, ...timeline];
 
-    // Otimista (já atualiza a tela para não ter delay)
-    lead.stage = newStage;
-    lead.ultimoContato = new Date().toISOString().split('T')[0];
-    renderPipeline();
-
-    // Salva no banco
+    // Atualiza apenas no Firestore. O listener onSnapshot atualizará a tela.
     updateDocument('leads', leadId, {
       stage: newStage,
-      ultimoContato: lead.ultimoContato,
-      timeline: timeline
+      ultimoContato: new Date().toISOString().split('T')[0],
+      timeline: updatedTimeline
     }).then(() => {
       showToast(`${lead.name} movido para "${newStage}"`, 'success');
     }).catch(e => {

@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Função para checar se o usuário está na whitelist
+    function isAuthorized() {
+      return request.auth != null && (
+        request.auth.token.email == 'rafaelbernardik15@gmail.com' ||
+        request.auth.token.email == 'paimfabricio77@gmail.com'
+      );
+    }
+
+    // Aplica a regra de autorização a todos os documentos e coleções
+    match /{document=**} {
+      allow read, write: if isAuthorized();
+    }
+  }
+}

@@ -46,6 +46,12 @@ function logout() {
   });
 }
 
+// Lista de e-mails autorizados para acessar o CRM
+const ALLOWED_EMAILS = [
+  'rafaelbernardik15@gmail.com',
+  'paimfabricio77@gmail.com'
+];
+
 /**
  * Listener de mudança de estado de autenticação
  * Disparado sempre que o usuário loga ou desloga, ou quando a página carrega
@@ -54,7 +60,14 @@ firebase.auth().onAuthStateChanged((user) => {
   const loginOverlay = document.getElementById('login-overlay');
   
   if (user) {
-    // Usuário está logado
+    // Verificar Whitelist
+    if (!ALLOWED_EMAILS.includes(user.email)) {
+      alert("Acesso Negado: O e-mail " + user.email + " não está autorizado a acessar este CRM.");
+      logout();
+      return;
+    }
+
+    // Usuário está logado e autorizado
     currentUser = user;
     if(loginOverlay) loginOverlay.style.display = 'none';
     

@@ -63,23 +63,30 @@ const CRM = {
     if (taskBadge) taskBadge.textContent = this.tasks.filter(t => t.status === 'atrasado').length;
   },
 
+  unsubscribeLeads: null,
+  unsubscribeMeetings: null,
+  unsubscribeTasks: null,
+
   loadDataFromFirestore() {
+    // Evitar múltiplos listeners ao recarregar a função
+    if (this.unsubscribeLeads) return;
+
     // Inscrever-se para atualizações de 'leads'
-    listenCollection('leads', (data) => {
+    this.unsubscribeLeads = listenCollection('leads', (data) => {
       this.leads = data;
       this.updateUI();
       if(routes[this.currentPage]) routes[this.currentPage]();
     });
 
     // Inscrever-se para atualizações de 'meetings'
-    listenCollection('meetings', (data) => {
+    this.unsubscribeMeetings = listenCollection('meetings', (data) => {
       this.meetings = data;
       this.updateUI();
       if(this.currentPage === 'reunioes') routes.reunioes();
     });
 
     // Inscrever-se para atualizações de 'tasks'
-    listenCollection('tasks', (data) => {
+    this.unsubscribeTasks = listenCollection('tasks', (data) => {
       this.tasks = data;
       this.updateUI();
       if(this.currentPage === 'tarefas') routes.tarefas();
