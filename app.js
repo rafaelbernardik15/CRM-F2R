@@ -81,10 +81,6 @@ const CRM = {
 
     // Listener de leads
     this.unsubscribeLeads = listenCollection('leads', (data) => {
-      // TEMP CLEANUP: apagar todos os leads persistentes
-      data.forEach(l => {
-        if (l.id) deleteDocument('leads', l.id);
-      });
       this.leads = data;
       this.updateUI();
       // Não re-renderiza o pipeline se estiver em modo drag para não quebrar o DnD
