@@ -237,7 +237,8 @@
 
     <!-- TOPBAR -->
     <header class="topbar">
-      <div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-ghost btn-icon mobile-menu-btn" style="display:none;font-size:20px;padding:0;border:none" onclick="toggleMobileMenu()">☰</button>
         <div class="topbar-title" id="topbar-title">Dashboard Comercial</div>
       </div>
 
@@ -271,8 +272,9 @@
         <button class="btn btn-primary btn-sm" onclick="openNewLeadModal()">
           + Novo Lead
         </button>
-        <button class="btn-icon btn btn-ghost" title="Notificações" style="font-size:16px" onclick="showToast('3 follow-ups urgentes para hoje!','info')">
+        <button class="btn-icon btn btn-ghost" title="Notificações" style="font-size:16px;position:relative" onclick="showNotifications()">
           🔔
+          <span id="bell-badge" style="position:absolute;top:-2px;right:-2px;background:var(--rose);color:#fff;font-size:9px;border-radius:50%;width:14px;height:14px;display:none;align-items:center;justify-content:center;font-weight:700">0</span>
         </button>
       </div>
     </header>

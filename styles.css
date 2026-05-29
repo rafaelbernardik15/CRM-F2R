@@ -1083,10 +1083,28 @@ img { display: block; max-width: 100%; }
   .lead-page-layout { grid-template-columns: 1fr; }
   .heatmap-grid { grid-template-columns: 1fr 1fr; }
 }
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   :root { --sidebar-width: 0px; }
-  .sidebar { transform: translateX(-100%); }
+  .sidebar { transform: translateX(-100%); z-index: 1000; box-shadow: 4px 0 24px rgba(0,0,0,0.1); }
   .sidebar.open { transform: translateX(0); --sidebar-width: 240px; }
+  .main { margin-left: 0; }
+  .topbar { padding: 0 16px; gap: 8px; }
+  .mobile-menu-btn { display: flex !important; }
+  .topbar-actions > div:first-child { display: none !important; }
+  .page-content { padding: 16px 16px 80px; }
+  .widget-grid, .charts-grid, .alerts-grid, .form-grid-2, .form-grid-3, .relationship-grid, .intel-grid, .heatmap-grid {
+    grid-template-columns: 1fr;
+  }
+  .kanban-wrapper {
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 24px;
+  }
+  .kanban-col {
+    scroll-snap-align: center;
+    width: 85vw;
+    max-width: 320px;
+  }
+  .lead-page-layout { grid-template-columns: 1fr; }
   .tasks-board { grid-template-columns: 1fr; }
-  .intel-grid { grid-template-columns: 1fr; }
 }

@@ -28,8 +28,14 @@ const CRM = {
   getMeeting(id) { return this.meetings.find(m => m.id === id); },
 
   updateUI() {
-    // Atualiza apenas os indicadores visuais da sidebar e topbar
-    // NÃO filtra/muta os arrays — os dados vêm exclusivamente do Firestore via onSnapshot
+    // Atualiza indicadores visuais e notificações
+    const todayStr = new Date().toISOString().split('T')[0];
+    const hotLeads = this.leads.filter(l => l.temp === 'hot' && l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
+    const patTotal = this.leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').reduce((a, l) => a + (l.patrimonio || 0), 0);
+    const overdueTasks = this.tasks.filter(t => t.status === 'atrasado').length;
+    const pendingFollowups = this.followups.filter(f => f.prioridade === 'urgent' || f.prioridade === 'important').length;
+    const meetingsToday = this.meetings.filter(m => m.date === todayStr).length;
+
     const hotEl = document.getElementById('tb-hot');
     const patEl = document.getElementById('tb-pat');
     const overdueEl = document.getElementById('tb-overdue');
@@ -37,13 +43,31 @@ const CRM = {
     const followupBadge = document.getElementById('badge-followup');
     const taskBadge = document.getElementById('badge-tasks');
 
-    if (hotEl) hotEl.textContent = this.leads.filter(l => l.temp === 'hot' && l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
-    if (patEl) patEl.textContent = this.formatCurrency(this.leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').reduce((a, l) => a + (l.patrimonio || 0), 0));
-    if (overdueEl) overdueEl.textContent = this.tasks.filter(t => t.status === 'atrasado').length;
+    if (hotEl) hotEl.textContent = hotLeads;
+    if (patEl) patEl.textContent = this.formatCurrency(patTotal);
+    if (overdueEl) overdueEl.textContent = overdueTasks;
 
     if (pipelineBadge) pipelineBadge.textContent = this.leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').length;
-    if (followupBadge) followupBadge.textContent = this.followups.filter(f => f.prioridade === 'urgent').length;
-    if (taskBadge) taskBadge.textContent = this.tasks.filter(t => t.status === 'atrasado').length;
+    if (followupBadge) followupBadge.textContent = pendingFollowups;
+    if (taskBadge) taskBadge.textContent = overdueTasks;
+
+    // Atualiza sino de notificações
+    const badge = document.getElementById('bell-badge');
+    if (badge) {
+      const totalNotif = overdueTasks + pendingFollowups + meetingsToday;
+      if (totalNotif > 0) {
+        badge.style.display = 'flex';
+        badge.textContent = totalNotif;
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // Prepara mensagens do sino
+    window._notifMsg = [];
+    if (pendingFollowups) window._notifMsg.push(`${pendingFollowups} follow-ups pendentes`);
+    if (meetingsToday) window._notifMsg.push(`${meetingsToday} reuniões agendadas para hoje`);
+    if (overdueTasks) window._notifMsg.push(`${overdueTasks} tarefas atrasadas`);
   },
 
   unsubscribeLeads: null,
@@ -57,6 +81,10 @@ const CRM = {
 
     // Listener de leads
     this.unsubscribeLeads = listenCollection('leads', (data) => {
+      // Limpeza de leads de teste criados em schema antigo
+      const leadsToDelete = data.filter(l => l.name === 'TESTE 1' || l.name === 'TESTE 2');
+      leadsToDelete.forEach(l => deleteDocument('leads', l.id));
+
       this.leads = data;
       this.updateUI();
       // Não re-renderiza o pipeline se estiver em modo drag para não quebrar o DnD
@@ -189,5 +217,23 @@ function navigate(page, extra = null) {
   content.className = 'page-content page-enter';
   if (routes[page]) routes[page]();
   CRM.updateUI();
+  
+  // Fecha sidebar no mobile ao navegar
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar && sidebar.classList.contains('open')) sidebar.classList.remove('open');
+
   setTimeout(() => content.classList.remove('page-enter'), 300);
 }
+
+window.showNotifications = function() {
+  if (window._notifMsg && window._notifMsg.length > 0) {
+    window._notifMsg.forEach((msg, i) => setTimeout(() => showToast(msg, 'info'), i * 300));
+  } else {
+    showToast('Nenhuma notificação pendente!', 'success');
+  }
+};
+
+window.toggleMobileMenu = function() {
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) sidebar.classList.toggle('open');
+};

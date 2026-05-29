@@ -5,6 +5,10 @@ function renderPipeline() {
   const content = document.getElementById('page-content');
   const leads = CRM.leads;
 
+  // Preserva scroll
+  const wrapper = document.getElementById('kanban-wrapper');
+  const scrollLeft = wrapper ? wrapper.scrollLeft : 0;
+
   // Filtros ativos
   const filters = window._pipelineFilters || { temp: 'all', resp: 'all' };
   window._pipelineFilters = filters;
@@ -44,6 +48,11 @@ function renderPipeline() {
   `;
 
   initDragDrop();
+
+  setTimeout(() => {
+    const newWrapper = document.getElementById('kanban-wrapper');
+    if (newWrapper) newWrapper.scrollLeft = scrollLeft;
+  }, 0);
 }
 
 function renderKanbanCol(stage, leads) {

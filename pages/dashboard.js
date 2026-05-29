@@ -110,39 +110,79 @@ function renderDashboard() {
       <div class="section-title"><span class="icon">👥</span>Leads Recentes</div>
       <button class="btn btn-ghost btn-sm" onclick="navigate('pipeline')">Ver pipeline →</button>
     </div>
-    <div class="card">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Lead</th><th>Empresa</th><th>Etapa</th><th>Temperatura</th>
-            <th>Patrimônio Est.</th><th>Responsável</th><th>Último Contato</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').slice(0,6).map(l => {
-            const adv = CRM.getAdvisor(l.responsavel);
-            return `<tr onclick="navigate('lead','${l.id}')">
-              <td><div style="font-weight:600;color:var(--text-primary)">${l.name}</div></td>
-              <td>${l.company}</td>
-              <td><span class="badge badge-accent">${l.stage}</span></td>
-              <td>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span class="temp-dot ${CRM.tempClass(l.temp)}"></span>
-                  ${CRM.tempLabel(l.temp)}
-                </div>
-              </td>
-              <td style="font-weight:600;color:var(--teal)">${CRM.formatCurrency(l.patrimonio)}</td>
-              <td>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <div class="avatar sm" style="background:linear-gradient(135deg,${adv.color},${adv.color}88)">${adv.initials}</div>
-                  ${adv.name.split(' ')[0]}
-                </div>
-              </td>
-              <td>${CRM.formatDate(l.ultimoContato)}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
+    <div class="card" style="margin-bottom:24px">
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Lead</th><th>Empresa</th><th>Etapa</th><th>Temperatura</th>
+              <th>Patrimônio Est.</th><th>Responsável</th><th>Último Contato</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${leads.filter(l => l.stage !== 'Fechado' && l.stage !== 'Perdido').slice(0,6).map(l => {
+              const adv = CRM.getAdvisor(l.responsavel);
+              return `<tr onclick="navigate('lead','${l.id}')">
+                <td><div style="font-weight:600;color:var(--text-primary)">${l.name}</div></td>
+                <td>${l.company}</td>
+                <td><span class="badge badge-accent">${l.stage}</span></td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span class="temp-dot ${CRM.tempClass(l.temp)}"></span>
+                    ${CRM.tempLabel(l.temp)}
+                  </div>
+                </td>
+                <td style="font-weight:600;color:var(--teal)">${CRM.formatCurrency(l.patrimonio)}</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <div class="avatar sm" style="background:linear-gradient(135deg,${adv.color},${adv.color}88)">${adv.initials}</div>
+                    ${adv.name.split(' ')[0]}
+                  </div>
+                </td>
+                <td>${CRM.formatDate(l.ultimoContato)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PRÓXIMAS REUNIÕES -->
+    <div class="section-header mt-4">
+      <div class="section-title"><span class="icon">📅</span>Agenda Operacional (Próximas Reuniões)</div>
+      <button class="btn btn-ghost btn-sm" onclick="navigate('reunioes')">Ver agenda →</button>
+    </div>
+    <div class="card" style="margin-bottom:24px">
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Data/Hora</th><th>Lead/Empresa</th><th>Tipo</th><th>Status</th><th>Responsável</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${CRM.meetings.filter(m => new Date(m.date+'T00:00:00') >= today).sort((a,b) => new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time)).slice(0,5).map(m => {
+              const lead = CRM.getLead(m.leadId);
+              const adv = CRM.getAdvisor(m.responsavel);
+              return `<tr onclick="navigate('reunioes')">
+                <td style="font-weight:600;color:var(--text-primary)">
+                  ${CRM.formatDate(m.date)} <span style="color:var(--text-muted);font-weight:500;margin-left:4px">⏰ ${m.time}</span>
+                </td>
+                <td>${lead ? `<strong>${lead.name}</strong><br><span style="font-size:11px;color:var(--text-muted)">${lead.company}</span>` : '—'}</td>
+                <td><span class="badge badge-accent">${m.type}</span></td>
+                <td><span class="badge badge-amber">${m.status}</span></td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <div class="avatar sm" style="background:linear-gradient(135deg,${adv.color},${adv.color}88)">${adv.initials}</div>
+                    ${adv.name.split(' ')[0]}
+                  </div>
+                </td>
+              </tr>`;
+            }).join('')}
+            ${CRM.meetings.filter(m => new Date(m.date+'T00:00:00') >= today).length === 0 ? `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhuma reunião agendada.</td></tr>` : ''}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
 
