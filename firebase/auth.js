@@ -76,23 +76,7 @@ firebase.auth().onAuthStateChanged((user) => {
     
     // Iniciar carregamento dos dados do Firestore
     if (typeof CRM !== 'undefined') {
-      // TEMP CLEANUP: Apagar todos os leads existentes antes de iniciar
-      if (!window._leadCleanupDone) {
-        window._leadCleanupDone = true;
-        db.collection('leads').get().then((snapshot) => {
-          const batch = db.batch();
-          snapshot.forEach((doc) => batch.delete(doc.ref));
-          return batch.commit();
-        }).then(() => {
-          console.log('[CRM] Todos os leads foram removidos.');
-          CRM.loadDataFromFirestore();
-        }).catch((err) => {
-          console.error('[CRM] Erro ao limpar leads:', err);
-          CRM.loadDataFromFirestore();
-        });
-      } else {
-        CRM.loadDataFromFirestore();
-      }
+      CRM.loadDataFromFirestore();
     }
   } else {
     // Usuário NÃO está logado
