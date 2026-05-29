@@ -151,6 +151,12 @@ function handleDragEnd(event) {
   // Remove classe de todos os cards
   document.querySelectorAll('.lead-card.dragging').forEach(c => c.classList.remove('dragging'));
   document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
+  
+  // Renderiza a UI se o onSnapshot chegou enquanto arrastava
+  if (CRM.pendingRender && CRM.currentPage === 'pipeline') {
+    CRM.pendingRender = false;
+    renderPipeline();
+  }
 }
 
 function handleDragOver(event) {
@@ -172,7 +178,6 @@ function handleDrop(event, newStage) {
   // Recupera o id do lead tanto do CRM.dragData quanto do dataTransfer
   const leadId = CRM.dragData || event.dataTransfer.getData('text/plain');
   CRM.dragData = null;
-  CRM.isDragging = false;
 
   if (!leadId) return;
 
@@ -180,13 +185,7 @@ function handleDrop(event, newStage) {
   if (!lead || lead.stage === newStage) return;
 
   const oldStage = lead.stage;
-
-  // Atualização otimista local para UX fluida
-  lead.stage = newStage;
-  lead.ultimoContato = new Date().toISOString().split('T')[0];
-
-  // Re-renderiza imediatamente com o estado local
-  renderPipeline();
+  const novoContato = new Date().toISOString().split('T')[0];
 
   // Monta timeline sem mutar o array original do Firestore
   const updatedTimeline = [
@@ -194,23 +193,21 @@ function handleDrop(event, newStage) {
       type: 'move',
       label: `Movido para: ${newStage}`,
       desc: `Lead avançou de "${oldStage}" para "${newStage}"`,
-      date: new Date().toISOString().split('T')[0],
+      date: novoContato,
       icon: '📋'
     },
     ...(lead.timeline || [])
   ];
 
   // Persiste no Firestore — onSnapshot atualizará o estado canônico
+  // A UI só será re-renderizada no handleDragEnd (quando o arraste finalizar com segurança)
   updateDocument('leads', leadId, {
     stage: newStage,
-    ultimoContato: lead.ultimoContato,
+    ultimoContato: novoContato,
     timeline: updatedTimeline
   }).then(() => {
     showToast(`${lead.name} movido para "${newStage}"`, 'success');
   }).catch(e => {
-    // Em caso de erro, reverte a atualização otimista
-    lead.stage = oldStage;
-    renderPipeline();
     showToast(`Erro ao mover: ${e.message}`, 'error');
   });
 }

@@ -6,6 +6,8 @@ const CRM = {
   currentPage: 'dashboard',
   currentLead: null,
   dragData: null,
+  isDragging: false,
+  pendingRender: false,
 
   // ─── DADOS MOCK ───────────────────────────────────────────
   advisors: [
@@ -58,7 +60,10 @@ const CRM = {
       this.leads = data;
       this.updateUI();
       // Não re-renderiza o pipeline se estiver em modo drag para não quebrar o DnD
-      if (this.currentPage === 'pipeline' && this.isDragging) return;
+      if (this.currentPage === 'pipeline' && this.isDragging) {
+        this.pendingRender = true;
+        return;
+      }
       if (routes[this.currentPage]) routes[this.currentPage]();
     });
 
