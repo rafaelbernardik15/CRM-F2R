@@ -81,11 +81,13 @@ const CRM = {
 
     // Listener de leads
     this.unsubscribeLeads = listenCollection('leads', (data) => {
-      // TEMP: Limpeza dos leads bugados exatos
+      // TEMP: Limpar todos os leads para iniciar o sistema zerado
       if (!window._limpezaFeita) {
         window._limpezaFeita = true;
-        const leadsToDelete = data.filter(l => l.name === 'Teste 1' || l.name === 'TESTE 2' || l.name === 'TESTE 1' || l.name === 'Teste 2');
-        leadsToDelete.forEach(l => deleteDocument('leads', l.id));
+        data.forEach(l => {
+          if (l.id) deleteDocument('leads', l.id);
+        });
+        console.log('Comando de limpeza total enviado!');
       }
       this.leads = data;
       this.updateUI();
