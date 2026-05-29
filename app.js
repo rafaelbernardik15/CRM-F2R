@@ -81,10 +81,12 @@ const CRM = {
 
     // Listener de leads
     this.unsubscribeLeads = listenCollection('leads', (data) => {
-      // Limpeza de leads de teste criados em schema antigo
-      const leadsToDelete = data.filter(l => l.name === 'TESTE 1' || l.name === 'TESTE 2');
-      leadsToDelete.forEach(l => deleteDocument('leads', l.id));
-
+      // TEMP: Limpeza dos leads bugados exatos
+      if (!window._limpezaFeita) {
+        window._limpezaFeita = true;
+        const leadsToDelete = data.filter(l => l.name === 'Teste 1' || l.name === 'TESTE 2' || l.name === 'TESTE 1' || l.name === 'Teste 2');
+        leadsToDelete.forEach(l => deleteDocument('leads', l.id));
+      }
       this.leads = data;
       this.updateUI();
       // Não re-renderiza o pipeline se estiver em modo drag para não quebrar o DnD
