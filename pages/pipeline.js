@@ -10,12 +10,13 @@ function renderPipeline() {
   const scrollLeft = wrapper ? wrapper.scrollLeft : 0;
 
   // Filtros ativos
-  const filters = window._pipelineFilters || { temp: 'all', resp: 'all' };
+  const filters = window._pipelineFilters || { temp: 'all', resp: 'all', name: '' };
   window._pipelineFilters = filters;
 
   const filteredLeads = leads.filter(l => {
     if (filters.temp !== 'all' && l.temp !== filters.temp) return false;
     if (filters.resp !== 'all' && l.responsavel !== filters.resp) return false;
+    if (filters.name && !l.name.toLowerCase().includes(filters.name.toLowerCase())) return false;
     return true;
   });
 
@@ -25,7 +26,21 @@ function renderPipeline() {
         <div class="section-title"><span class="icon">📊</span>Pipeline Comercial</div>
         <p style="font-size:12px;color:var(--text-muted);margin-top:2px">${filteredLeads.length} leads · Arraste para mover entre etapas</p>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <!-- Busca por nome -->
+        <div style="position:relative;display:flex;align-items:center">
+          <span style="position:absolute;left:9px;font-size:13px;color:var(--text-muted);pointer-events:none">🔍</span>
+          <input
+            class="form-input"
+            id="pipeline-name-filter"
+            type="text"
+            placeholder="Buscar por nome..."
+            value="${filters.name || ''}"
+            oninput="window._pipelineFilters={...window._pipelineFilters,name:this.value};renderPipeline()"
+            style="padding:6px 12px 6px 30px;font-size:12px;width:180px;height:34px"
+          >
+          ${filters.name ? `<span onclick="window._pipelineFilters={...window._pipelineFilters,name:''};renderPipeline()" style="position:absolute;right:8px;cursor:pointer;color:var(--text-muted);font-size:14px" title="Limpar busca">✕</span>` : ''}
+        </div>
         <!-- Filtro temperatura -->
         <select class="form-select" style="width:130px;padding:6px 12px;font-size:12px" onchange="window._pipelineFilters={...window._pipelineFilters,temp:this.value};renderPipeline()">
           <option value="all" ${filters.temp==='all'?'selected':''}>🌡 Temperatura</option>
@@ -263,6 +278,12 @@ function openNewLeadModal() {
         </select>
       </div>
       <div class="form-group">
+        <label class="form-label">Etapa do Pipeline</label>
+        <select class="form-select" id="nl-stage">
+          ${CRM.stageOrder.map(s => `<option value="${s}" ${s === 'Novo lead' ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label">Temperatura</label>
         <select class="form-select" id="nl-temp">
           <option value="cold">❄️ Frio</option>
@@ -301,7 +322,7 @@ function saveNewLead() {
     cidade: '', whatsapp: document.getElementById('nl-whatsapp').value,
     email: document.getElementById('nl-email').value,
     instagram: '', linkedin: '',
-    stage: 'Novo lead',
+    stage: document.getElementById('nl-stage').value || 'Novo lead',
     temp: document.getElementById('nl-temp').value,
     patrimonio: parseInt(document.getElementById('nl-patrimonio').value) || 0,
     origem: document.getElementById('nl-origem').value,
