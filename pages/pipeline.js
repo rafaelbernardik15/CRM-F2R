@@ -36,7 +36,7 @@ function renderPipeline() {
             type="text"
             placeholder="Buscar por nome..."
             value="${filters.name || ''}"
-            oninput="window._pipelineFilters={...window._pipelineFilters,name:this.value};renderPipeline()"
+            oninput="const _v=this.value,_p=this.selectionStart;window._pipelineFilters={...window._pipelineFilters,name:_v};renderPipeline();const _el=document.getElementById('pipeline-name-filter');if(_el){_el.focus();_el.setSelectionRange(_p,_p);}"
             style="padding:6px 12px 6px 30px;font-size:12px;width:180px;height:34px"
           >
           ${filters.name ? `<span onclick="window._pipelineFilters={...window._pipelineFilters,name:''};renderPipeline()" style="position:absolute;right:8px;cursor:pointer;color:var(--text-muted);font-size:14px" title="Limpar busca">✕</span>` : ''}
