@@ -199,6 +199,17 @@
         Inteligência
       </div>
 
+      <div class="nav-section-label">Sistema</div>
+      <div class="nav-item" onclick="exportData()">
+        <span class="nav-icon">⬇️</span>
+        Exportar Backup
+      </div>
+      <div class="nav-item" onclick="document.getElementById('import-file').click()">
+        <span class="nav-icon">⬆️</span>
+        Importar Backup
+        <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
+      </div>
+
       <div class="nav-section-label">Em Breve</div>
       <div class="nav-item" style="opacity:0.4;cursor:not-allowed" title="Em desenvolvimento">
         <span class="nav-icon">💬</span>

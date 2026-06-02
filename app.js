@@ -254,3 +254,63 @@ window.toggleMobileMenu = function() {
   const sidebar = document.getElementById('sidebar');
   if (sidebar) sidebar.classList.toggle('open');
 };
+
+// ─── IMPORT / EXPORT ─────────────────────────────────────────
+window.exportData = function() {
+  const data = {
+    leads: CRM.leads,
+    meetings: CRM.meetings,
+    tasks: CRM.tasks
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `InvestCRM_Backup_${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Backup exportado com sucesso!', 'success');
+};
+
+window.importData = async function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (!confirm('⚠️ ATENÇÃO: A importação irá sobrescrever dados e atualizar as informações no banco de dados. Deseja continuar?')) {
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.leads || !data.meetings || !data.tasks) {
+        throw new Error("Formato de arquivo inválido.");
+      }
+      
+      showToast('Importando dados, não feche a página...', 'info');
+      
+      const collections = ['leads', 'meetings', 'tasks'];
+      for (const col of collections) {
+        for (const item of data[col]) {
+          const id = item.id;
+          const itemData = { ...item };
+          delete itemData.id; // não salvamos o ID dentro do documento em si
+          await db.collection(col).doc(id).set(itemData);
+        }
+      }
+      showToast('Backup importado com sucesso! Recarregando...', 'success');
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (err) {
+      console.error(err);
+      showToast('Erro ao importar: ' + err.message, 'error');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+};
+
