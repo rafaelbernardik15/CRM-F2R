@@ -82,6 +82,32 @@ const CRM = {
     // Listener de leads
     this.unsubscribeLeads = listenCollection('leads', (data) => {
       this.leads = data;
+      
+      // Auto-gerar follow-ups baseados no proximoContato dos leads
+      this.followups = this.leads
+        .filter(l => l.proximoContato && l.stage !== 'Fechado' && l.stage !== 'Perdido')
+        .map(l => {
+          const hoje = new Date();
+          hoje.setHours(0,0,0,0);
+          const venc = new Date(l.proximoContato + 'T00:00:00');
+          const diffDays = Math.round((venc - hoje) / 86400000);
+          
+          let prio = 'normal';
+          if (diffDays < 0) prio = 'urgent'; // Vencido
+          else if (diffDays <= 1) prio = 'important'; // Hoje ou amanhã
+
+          return {
+            id: 'f_' + l.id,
+            leadId: l.id,
+            responsavel: l.responsavel,
+            vencimento: l.proximoContato,
+            prioridade: prio,
+            tipo: 'Contato agendado',
+            desc: l.obs ? 'Obs: ' + (l.obs.length > 50 ? l.obs.substring(0, 50) + '...' : l.obs) : 'Acompanhamento programado'
+          };
+        })
+        .sort((a,b) => new Date(a.vencimento) - new Date(b.vencimento));
+
       this.updateUI();
       // Não re-renderiza o pipeline se estiver em modo drag para não quebrar o DnD
       if (this.currentPage === 'pipeline' && this.isDragging) {
@@ -106,12 +132,7 @@ const CRM = {
       if (this.currentPage === 'tarefas') routes.tarefas();
     });
 
-    // Listener de followups
-    this.unsubscribeFollowups = listenCollection('followups', (data) => {
-      this.followups = data;
-      this.updateUI();
-      if (this.currentPage === 'followup') routes.followup();
-    });
+
   },
 
   formatCurrency(val) {

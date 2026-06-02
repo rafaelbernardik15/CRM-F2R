@@ -374,7 +374,7 @@ function saveContact(leadId) {
     ultimoContato: contactDate,
     temp: temp
   };
-  if (nextDate) updates.proximoContato = nextDate;
+  updates.proximoContato = nextDate ? nextDate : '';
 
   updateDocument('leads', leadId, updates).then(() => {
     closeModal();

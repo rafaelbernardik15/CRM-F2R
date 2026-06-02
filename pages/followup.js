@@ -130,7 +130,8 @@ function renderFollowupItem(f) {
 
 window.deleteFollowup = function(id) {
   if (confirm('Tem certeza que deseja excluir este follow-up?')) {
-    deleteDocument('followups', id).then(() => {
+    const leadId = id.replace('f_', '');
+    updateDocument('leads', leadId, { proximoContato: '' }).then(() => {
       showToast('Follow-up excluído com sucesso.', 'success');
     }).catch(e => showToast(`Erro ao excluir: ${e.message}`, 'error'));
   }
@@ -222,15 +223,11 @@ function saveQuickContact(leadId) {
     timeline: updatedTimeline,
     ultimoContato: new Date().toISOString().split('T')[0]
   };
-  if (nextDate) updates.proximoContato = nextDate;
+  updates.proximoContato = nextDate ? nextDate : '';
   if (temp) updates.temp = temp;
 
   updateDocument('leads', leadId, updates).then(() => {
-    // Limpa follow-ups deste lead no Firestore
-    const followupsToDelete = CRM.followups.filter(f => f.leadId === leadId);
-    Promise.all(followupsToDelete.map(f => deleteDocument('followups', f.id))).then(() => {
-      closeModal();
-      showToast(`Contato "${type}" registrado com sucesso!`, 'success');
-    });
+    closeModal();
+    showToast(`Contato "${type}" registrado com sucesso!`, 'success');
   }).catch(e => showToast(`Erro: ${e.message}`, 'error'));
 }
