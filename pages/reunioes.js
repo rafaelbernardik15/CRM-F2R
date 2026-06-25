@@ -271,12 +271,16 @@ function saveMeetingDetail(id) {
 function openNewMeetingModal() {
   const modal = document.getElementById('modal-overlay');
   document.getElementById('modal-title').textContent = '+ Nova Reunião';
+  
+  const leadsDisponiveis = CRM.leads;
+  
   document.getElementById('modal-body').innerHTML = `
     <div class="form-group">
       <label class="form-label">Lead *</label>
+      <input type="text" id="nm-lead-search" class="form-input" placeholder="🔍 Buscar lead..." style="margin-bottom:6px">
       <select class="form-select" id="nm-lead">
         <option value="">— Selecionar lead —</option>
-        ${CRM.leads.map(l=>`<option value="${l.id}">${l.name} — ${l.company}</option>`).join('')}
+        ${leadsDisponiveis.map(l=>`<option value="${l.id}">${l.name} — ${l.company}</option>`).join('')}
       </select>
     </div>
     <div class="form-group">
@@ -312,6 +316,15 @@ function openNewMeetingModal() {
   `;
   document.getElementById('modal-confirm').textContent = 'Criar Reunião';
   document.getElementById('modal-confirm').onclick = saveNewMeeting;
+  
+  // Filtro de leads
+  document.getElementById('nm-lead-search').addEventListener('input', (e) => {
+    const t = e.target.value.toLowerCase();
+    const filtered = leadsDisponiveis.filter(l => l.name.toLowerCase().includes(t) || (l.company||'').toLowerCase().includes(t));
+    document.getElementById('nm-lead').innerHTML = '<option value="">— Selecionar lead —</option>' + 
+      filtered.map(l => `<option value="${l.id}">${l.name} — ${l.company}</option>`).join('');
+  });
+
   modal.classList.add('open');
 }
 

@@ -116,6 +116,9 @@ function openTaskDetail(taskId) {
   const lead = t.leadId ? CRM.getLead(t.leadId) : null;
   const modal = document.getElementById('modal-overlay');
   document.getElementById('modal-title').textContent = '✏️ Tarefa';
+  
+  const leadsDisponiveis = CRM.leads;
+  
   document.getElementById('modal-body').innerHTML = `
     <div class="form-group">
       <label class="form-label">Título *</label>
@@ -146,9 +149,10 @@ function openTaskDetail(taskId) {
       </div>
       <div class="form-group" style="grid-column:span 2">
         <label class="form-label">Lead Relacionado</label>
+        <input type="text" id="td-lead-search" class="form-input" placeholder="🔍 Buscar lead..." style="margin-bottom:6px">
         <select class="form-select" id="td-lead">
           <option value="">— Nenhum —</option>
-          ${CRM.leads.map(l=>`<option value="${l.id}" ${l.id===t.leadId?'selected':''}>${l.name} — ${l.company}</option>`).join('')}
+          ${leadsDisponiveis.map(l=>`<option value="${l.id}" ${l.id===t.leadId?'selected':''}>${l.name} — ${l.company}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -158,6 +162,15 @@ function openTaskDetail(taskId) {
   `;
   document.getElementById('modal-confirm').textContent = 'Salvar';
   document.getElementById('modal-confirm').onclick = () => saveTaskDetail(taskId);
+  
+  // Filtro de leads
+  document.getElementById('td-lead-search').addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const filtered = leadsDisponiveis.filter(l => l.name.toLowerCase().includes(term) || (l.company||'').toLowerCase().includes(term));
+    document.getElementById('td-lead').innerHTML = '<option value="">— Nenhum —</option>' + 
+      filtered.map(l => `<option value="${l.id}" ${l.id===t.leadId?'selected':''}>${l.name} — ${l.company}</option>`).join('');
+  });
+
   modal.classList.add('open');
 }
 
@@ -191,6 +204,9 @@ function deleteTask(taskId) {
 function openNewTaskModal() {
   const modal = document.getElementById('modal-overlay');
   document.getElementById('modal-title').textContent = '+ Nova Tarefa';
+  
+  const leadsDisponiveis = CRM.leads;
+  
   document.getElementById('modal-body').innerHTML = `
     <div class="form-group">
       <label class="form-label">Título *</label>
@@ -217,15 +233,25 @@ function openNewTaskModal() {
       </div>
       <div class="form-group">
         <label class="form-label">Lead Relacionado</label>
+        <input type="text" id="nt-lead-search" class="form-input" placeholder="🔍 Buscar lead..." style="margin-bottom:6px">
         <select class="form-select" id="nt-lead">
           <option value="">— Nenhum —</option>
-          ${CRM.leads.map(l=>`<option value="${l.id}">${l.name}</option>`).join('')}
+          ${leadsDisponiveis.map(l=>`<option value="${l.id}">${l.name} — ${l.company||''}</option>`).join('')}
         </select>
       </div>
     </div>
   `;
   document.getElementById('modal-confirm').textContent = 'Criar Tarefa';
   document.getElementById('modal-confirm').onclick = saveNewTask;
+  
+  // Filtro de leads
+  document.getElementById('nt-lead-search').addEventListener('input', (e) => {
+    const t = e.target.value.toLowerCase();
+    const filtered = leadsDisponiveis.filter(l => l.name.toLowerCase().includes(t) || (l.company||'').toLowerCase().includes(t));
+    document.getElementById('nt-lead').innerHTML = '<option value="">— Nenhum —</option>' + 
+      filtered.map(l => `<option value="${l.id}">${l.name} — ${l.company||''}</option>`).join('');
+  });
+
   modal.classList.add('open');
 }
 

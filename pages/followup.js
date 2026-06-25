@@ -151,11 +151,15 @@ function miniWidget(icon, label, value, color) {
 function openQuickContactModal() {
   const modal = document.getElementById('modal-overlay');
   document.getElementById('modal-title').textContent = '📱 Registrar Contato Rápido';
+  
+  const leadsDisponiveis = CRM.leads.filter(l=>l.stage!=='Fechado'&&l.stage!=='Perdido');
+  
   document.getElementById('modal-body').innerHTML = `
     <div class="form-group">
       <label class="form-label">Lead</label>
+      <input type="text" id="qc-lead-search" class="form-input" placeholder="🔍 Buscar lead..." style="margin-bottom:6px">
       <select class="form-select" id="qc-lead">
-        ${CRM.leads.filter(l=>l.stage!=='Fechado'&&l.stage!=='Perdido').map(l=>`<option value="${l.id}">${l.name} — ${l.company}</option>`).join('')}
+        ${leadsDisponiveis.map(l=>`<option value="${l.id}">${l.name} — ${l.company}</option>`).join('')}
       </select>
     </div>
     <div class="form-group">
@@ -193,6 +197,14 @@ function openQuickContactModal() {
     const leadId = document.getElementById('qc-lead').value;
     saveQuickContact(leadId);
   };
+  
+  // Filtro de leads
+  document.getElementById('qc-lead-search').addEventListener('input', (e) => {
+    const t = e.target.value.toLowerCase();
+    const filtered = leadsDisponiveis.filter(l => l.name.toLowerCase().includes(t) || (l.company||'').toLowerCase().includes(t));
+    document.getElementById('qc-lead').innerHTML = filtered.map(l => `<option value="${l.id}">${l.name} — ${l.company}</option>`).join('');
+  });
+
   modal.classList.add('open');
 }
 
